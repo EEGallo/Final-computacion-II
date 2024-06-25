@@ -5,8 +5,9 @@ ChatConnect es una aplicación de sala de chat cliente-servidor desarrollada en 
 ## Características
 
 - Comunicación en tiempo real entre múltiples clientes y un servidor.
-- Interfaz gráfica de usuario (GUI) simple para el cliente.
-- Uso de sockets para la comunicación de red.
+- Servidor de chat asincrónico utilizando asyncio.
+- Manejo de desconexiones de clientes.
+- Interfaz gráfica de usuario para el cliente.
 - Mensajería bidireccional entre clientes y el servidor.
 
 ## Uso

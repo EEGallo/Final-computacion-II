@@ -1,94 +1,57 @@
-import threading
-import socket
+import asyncio
 import argparse
-import os
 
-class Server(threading.Thread):
+class ChatServer:
     def __init__(self, host, port):
-        super().__init__()
-        self.connections = []
         self.host = host
         self.port = port
+        self.clients = []
 
-    def run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.host, self.port))
-        sock.listen(1)
-        print("Escuchando en ", sock.getsockname())
+    async def handle_client(self, reader, writer):
+        addr = writer.get_extra_info('peername')
+        self.clients.append(writer)
+        print(f'{addr} está conectado')
 
-        while True:
-            sc, sockname = sock.accept()
-            print(f'Aceptar una nueva conexión de {sockname} a {sc.getsockname()}')
+        try:
+            while True:
+                data = await reader.read(100)
+                if not data:
+                    break
+                message = data.decode()
+                print(f'Recibido {message} de {addr}')
+                self.broadcast(message, writer)
+        except ConnectionResetError:
+            print(f'La conexión con {addr} se ha cerrado inesperadamente')
+        except Exception as e:
+            print(f'Se ha producido un error con {addr}: {e}')
+        finally:
+            if writer in self.clients:
+                self.clients.remove(writer)
+            writer.close()
+            await writer.wait_closed()
+            print(f'{addr} se ha desconectado')
 
-            # Crear un nuevo socket
-            server_socket = ServerSocket(sc, sockname, self)
-            # Iniciar el nuevo socket
-            server_socket.start()
+    def broadcast(self, message, sender_writer):
+        for client in self.clients:
+            if client != sender_writer:
+                try:
+                    client.write(message.encode())
+                    asyncio.create_task(client.drain())
+                except ConnectionResetError:
+                    print(f'Error al enviar mensaje a un cliente desconectado')
+                except Exception as e:
+                    print(f'Error desconocido al enviar mensaje: {e}')
 
-            # Añadir hilo a las conexiones activas
-            self.connections.append(server_socket)
-            print('Listo para recibir mensajes de', sc.getpeername())
-
-    def broadcast(self, message, source):
-        for connection in self.connections:
-            # Enviar a todos los clientes conectados excepto al cliente de origen
-            if connection.sockname != source:
-                connection.send(message)
-
-    def remove_connection(self, connection):
-        self.connections.remove(connection)
-
-
-
-class ServerSocket(threading.Thread):
-    def __init__(self, sc, sockname, server):
-        super().__init__()
-        self.sc = sc
-        self.sockname = sockname
-        self.server = server
-
-    def run(self):
-        while True:
-            message = self.sc.recv(1024).decode('ascii')
-
-            if message:
-                print(f'{self.sockname} dice: {message}')
-                server.broadcast(message, self.sockname)
-            else:
-                print(f'{self.sockname} ha cerrado la conexión')
-                self.sc.close()
-                server.remove_connection(self)
-                return
-
-    def send(self, message):
-        self.sc.sendall(message.encode('ascii'))
-
-
-    def exit():
-        while True:
-            ipt = input('')
-            if ipt == 'q':
-                print('Cerrar todas las conexiones...')
-                for connection in server.connections:
-                    connection.sc.close()
-
-                print('Apagando el servidor...')
-                os.exit(0)
-
-
-
+    async def run(self):
+        server = await asyncio.start_server(self.handle_client, self.host, self.port)
+        async with server:
+            await server.serve_forever()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='ChatConnect Server')
-    parser.add_argument('host', help='Interfaz en la que escucha el servidor')
-    parser.add_argument('-p', metavar='PORT', type=int, default=1060, help='TCP port (default 1060)')
+    parser = argparse.ArgumentParser(description='Servidor de Chat')
+    parser.add_argument('host', help='Interfaz en la que se conecta el servidor')
+    parser.add_argument('-p', metavar='PORT', type=int, default=1060, help='Puerto TCP (por defecto 1060)')
 
     args = parser.parse_args()
-
-    # Crear e iniciar el hilo del servidor
-    server = Server(args.host, args.p)
-    server.start()
-
-    exit = threading.Thread(target=exit)
-    exit.start()
+    server = ChatServer(args.host, args.p)
+    asyncio.run(server.run())
