@@ -18,8 +18,10 @@ class ChatServer:
                 if not data:
                     break
                 message = data.decode()
-                print(f'Recibido {message} de {addr}')
+                print(f'{message}')
+                
                 self.broadcast(message, writer)
+                
         except ConnectionResetError:
             print(f'La conexión con {addr} se ha cerrado inesperadamente')
         except Exception as e:
@@ -30,6 +32,7 @@ class ChatServer:
             writer.close()
             await writer.wait_closed()
             print(f'{addr} se ha desconectado')
+
 
     def broadcast(self, message, sender_writer):
         for client in self.clients:
@@ -44,6 +47,8 @@ class ChatServer:
 
     async def run(self):
         server = await asyncio.start_server(self.handle_client, self.host, self.port)
+        print(f"Iniciando servidor en el host: {self.host} port:{self.port}")
+
         async with server:
             await server.serve_forever()
 
