@@ -1,6 +1,10 @@
 # Informe de Diseño de ChatConnect
 
 
+![image](https://github.com/EEGallo/Final-computacion-II/assets/92290601/1ab99ff7-0b29-4768-961a-94bae8cb4d15)
+
+
+
 ## Uso de asyncio para Manejo de Operaciones de Red
 
  La aplicación ha sido refactorizada para utilizar asyncio en el manejo de operaciones de red. asyncio permite gestionar eficientemente conexiones concurrentes sin bloqueos, mejorando así la escalabilidad y el rendimiento del servidor.
